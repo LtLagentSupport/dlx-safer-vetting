@@ -6,12 +6,12 @@
 <title>DLX SAFER Carrier Vetting</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-  /* [Same CSS as original DLX_SAFER_Integration.html - truncated for brevity] */
   :root {
     --dlx-navy: #0D1F3C;
     --dlx-blue: #00AEEF;
     --dlx-white: #FFFFFF;
   }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: 'Barlow', sans-serif;
     background: #F0F7FC;
@@ -43,6 +43,7 @@
     border: 1px solid #ddd;
     border-radius: 4px;
     font-size: 14px;
+    font-family: 'Barlow', sans-serif;
   }
   button {
     background: var(--dlx-blue);
@@ -53,6 +54,10 @@
   }
   button:hover {
     background: #0088C0;
+  }
+  button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
   }
   .result-card {
     background: white;
@@ -67,8 +72,47 @@
   .hidden { display: none; }
   .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0; }
   .data-item { padding: 8px; background: #F8F9FA; border-radius: 4px; }
-  .data-label { font-weight: 600; font-size: 12px; color: #666; }
+  .data-label { font-weight: 600; font-size: 12px; color: #666; text-transform: uppercase; }
   .data-value { font-size: 14px; margin-top: 4px; }
+  .loading-spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid var(--dlx-blue);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 20px auto;
+  }
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  .alert {
+    padding: 15px;
+    margin: 15px 0;
+    border-radius: 6px;
+    border-left: 4px solid;
+  }
+  .alert-info {
+    background: #E3F2FD;
+    border-color: #2196F3;
+    color: #0D47A1;
+  }
+  .alert-warning {
+    background: #FFF3E0;
+    border-color: #FF9800;
+    color: #E65100;
+  }
+  .alert-success {
+    background: #E8F5E9;
+    border-color: #4CAF50;
+    color: #1B5E20;
+  }
+  .grid-3col { display: grid; grid-template-columns: 150px 1fr auto; gap: 10px; }
+  @media (max-width: 768px) {
+    .grid-3col { grid-template-columns: 1fr; }
+    .data-grid { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
@@ -82,20 +126,30 @@
   
   <div class="search-box">
     <h2>Carrier Safety Lookup</h2>
-    <p>Enter your FMCSA API Key below (get one free at <a href="https://mobile.fmcsa.dot.gov/QCDevsite/home" target="_blank">mobile.fmcsa.dot.gov</a>)</p>
     
-    <div style="margin-bottom: 20px;">
-      <label>FMCSA API Key (stored in browser only):</label>
-      <input type="password" id="apiKeyInput" placeholder="Paste your WebKey here..." style="width: 100%; max-width: 400px;">
-      <button onclick="saveApiKey()">💾 Save Key</button>
-      <span id="keyStatus" style="margin-left: 10px;"></span>
+    <!-- API Key Section -->
+    <div class="alert alert-info">
+      <strong>📋 Setup Required:</strong> Get your free FMCSA API Key at 
+      <a href="https://mobile.fmcsa.dot.gov/QCDevsite/home" target="_blank" style="color: #0D47A1; font-weight: bold;">mobile.fmcsa.dot.gov</a>
+      <br><small>Register with Login.gov, then go to "My WebKeys" and create a new key. It's completely free.</small>
+    </div>
+    
+    <div style="margin: 20px 0;">
+      <label style="font-weight: 600; display: block; margin-bottom: 5px;">FMCSA API Key:</label>
+      <div style="display: flex; gap: 10px; align-items: stretch;">
+        <input type="password" id="apiKeyInput" placeholder="Paste your WebKey here..." style="flex: 1;">
+        <button onclick="saveApiKey()" style="padding: 12px 24px;">💾 Save Key</button>
+      </div>
+      <div id="keyStatus" style="margin-top: 8px; font-size: 13px;"></div>
     </div>
 
-    <hr>
+    <hr style="margin: 25px 0; border: none; border-top: 1px solid #ddd;">
 
-    <div style="display: grid; grid-template-columns: 150px 1fr auto; gap: 10px; margin-top: 20px;">
+    <!-- Search Section -->
+    <h3 style="margin-bottom: 15px;">Search for a Carrier</h3>
+    <div class="grid-3col">
       <div>
-        <label>Search By:</label>
+        <label style="font-weight: 600; display: block; margin-bottom: 5px;">Search By:</label>
         <select id="searchType" onchange="updatePlaceholder()">
           <option value="dot">DOT Number</option>
           <option value="mc">MC Number</option>
@@ -103,58 +157,95 @@
         </select>
       </div>
       <div>
-        <label id="searchLabel">DOT Number:</label>
-        <input type="text" id="searchInput" placeholder="e.g. 884901">
+        <label id="searchLabel" style="font-weight: 600; display: block; margin-bottom: 5px;">DOT Number:</label>
+        <input type="text" id="searchInput" placeholder="e.g. 884901" style="width: 100%;">
       </div>
       <div style="display: flex; align-items: flex-end;">
-        <button onclick="searchCarrier()" style="padding: 12px 30px;">🔍 SEARCH</button>
+        <button onclick="searchCarrier()" id="searchBtn" style="padding: 12px 30px; width: 100%;">🔍 SEARCH</button>
       </div>
     </div>
   </div>
 
-  <div id="loadingIndicator" class="hidden">
-    <div style="text-align: center; padding: 40px;">
-      <div style="font-size: 40px;">⏳</div>
-      <p>Querying FMCSA SAFER database...</p>
-    </div>
+  <!-- Loading Indicator -->
+  <div id="loadingIndicator" class="hidden" style="text-align: center; padding: 40px;">
+    <div class="loading-spinner"></div>
+    <p style="margin-top: 15px; color: #666;">Querying FMCSA SAFER database...</p>
   </div>
 
-  <div id="errorBox" class="hidden result-card blocked">
-    <h3>❌ Error</h3>
-    <p id="errorMessage"></p>
-  </div>
+  <!-- Error Display -->
+  <div id="errorBox" class="hidden"></div>
 
+  <!-- Results Display -->
   <div id="results" class="hidden"></div>
+
+  <!-- Instructions -->
+  <div id="instructions" class="alert alert-info">
+    <h3 style="margin-bottom: 10px;">🚀 Quick Start Guide</h3>
+    <ol style="margin: 10px 0 10px 20px; line-height: 1.8;">
+      <li>Get your free FMCSA API Key from the link above (takes 2 minutes)</li>
+      <li>Paste it in the API Key field and click "Save Key"</li>
+      <li>Choose search type (DOT, MC, or Carrier Name)</li>
+      <li>Enter the carrier information and click SEARCH</li>
+      <li>Review the results and risk assessment</li>
+    </ol>
+    <p style="margin-top: 15px;"><strong>💡 Try these examples:</strong></p>
+    <ul style="margin: 5px 0 0 20px; line-height: 1.8;">
+      <li>DOT: <code>884901</code> (FedEx Freight)</li>
+      <li>MC: <code>72644</code> (Old Dominion)</li>
+      <li>Name: <code>SAIA</code></li>
+    </ul>
+  </div>
 
 </div>
 
 <script>
-// ── API KEY MANAGEMENT ─────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// API KEY MANAGEMENT
+// ══════════════════════════════════════════════════════════════════════════════
+
 function saveApiKey() {
   const key = document.getElementById('apiKeyInput').value.trim();
   if (!key) {
-    alert('Please enter your FMCSA WebKey');
+    showStatus('❌ Please enter your FMCSA WebKey', 'error');
     return;
   }
+  
+  // Test the key format (basic validation)
+  if (key.length < 10) {
+    showStatus('❌ API key appears invalid (too short)', 'error');
+    return;
+  }
+  
   localStorage.setItem('fmcsa_api_key', key);
-  document.getElementById('keyStatus').innerHTML = '✅ <span style="color: green;">Key Saved</span>';
-  document.getElementById('apiKeyInput').value = '•'.repeat(20);
+  document.getElementById('apiKeyInput').value = '•'.repeat(Math.min(key.length, 40));
   document.getElementById('apiKeyInput').disabled = true;
+  showStatus('✅ API Key saved successfully!', 'success');
 }
 
 function getApiKey() {
   return localStorage.getItem('fmcsa_api_key');
 }
 
-// Load saved key on page load
+function showStatus(message, type) {
+  const statusDiv = document.getElementById('keyStatus');
+  statusDiv.innerHTML = message;
+  statusDiv.style.color = type === 'success' ? '#1A7A40' : type === 'error' ? '#C0392B' : '#666';
+  statusDiv.style.fontWeight = '600';
+}
+
+// Check for saved key on load
 window.onload = function() {
   const savedKey = getApiKey();
   if (savedKey) {
-    document.getElementById('apiKeyInput').value = '•'.repeat(20);
+    document.getElementById('apiKeyInput').value = '•'.repeat(40);
     document.getElementById('apiKeyInput').disabled = true;
-    document.getElementById('keyStatus').innerHTML = '✅ <span style="color: green;">Key Loaded</span>';
+    showStatus('✅ API Key loaded from browser storage', 'success');
   }
 };
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SEARCH TYPE MANAGEMENT
+// ══════════════════════════════════════════════════════════════════════════════
 
 function updatePlaceholder() {
   const type = document.getElementById('searchType').value;
@@ -171,11 +262,14 @@ function updatePlaceholder() {
   input.placeholder = config[type].placeholder;
 }
 
-// ── MAIN SEARCH FUNCTION ───────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// MAIN SEARCH FUNCTION
+// ══════════════════════════════════════════════════════════════════════════════
+
 async function searchCarrier() {
   const apiKey = getApiKey();
   if (!apiKey) {
-    showError('API Key Required', 'Please enter your FMCSA WebKey above and click Save Key.');
+    showError('API Key Required', 'Please enter your FMCSA WebKey above and click "Save Key" to continue.');
     return;
   }
 
@@ -187,59 +281,110 @@ async function searchCarrier() {
     return;
   }
 
-  // Hide previous results
+  // UI state
   document.getElementById('results').classList.add('hidden');
   document.getElementById('errorBox').classList.add('hidden');
+  document.getElementById('instructions').classList.add('hidden');
   document.getElementById('loadingIndicator').classList.remove('hidden');
+  document.getElementById('searchBtn').disabled = true;
 
   try {
     // Build API URL
     const base = 'https://mobile.fmcsa.dot.gov/qc/services';
-    let url;
-    if (searchType === 'dot') {
-      url = `${base}/carriers/${encodeURIComponent(searchValue)}?webKey=${apiKey}`;
-    } else if (searchType === 'mc') {
-      url = `${base}/carriers/docket-number/${encodeURIComponent(searchValue)}?webKey=${apiKey}`;
-    } else {
-      url = `${base}/carriers/name/${encodeURIComponent(searchValue)}?webKey=${apiKey}`;
-    }
-
-    const response = await fetch(url);
+    let endpoint;
     
+    if (searchType === 'dot') {
+      endpoint = `/carriers/${encodeURIComponent(searchValue)}`;
+    } else if (searchType === 'mc') {
+      endpoint = `/carriers/docket-number/${encodeURIComponent(searchValue)}`;
+    } else {
+      endpoint = `/carriers/name/${encodeURIComponent(searchValue)}`;
+    }
+    
+    const directUrl = `${base}${endpoint}?webKey=${encodeURIComponent(apiKey)}`;
+    const url = `https://api.allorigins.win/raw?url=${encodeURIComponent(directUrl)}`;
+    
+    console.log('Fetching:', url);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+      mode: 'cors'
+    });
+    
+    console.log('Response status:', response.status);
+
     if (!response.ok) {
-      if (response.status === 401) throw new Error('Invalid API Key');
-      if (response.status === 404) throw new Error('Carrier not found');
-      throw new Error(`API Error: ${response.status}`);
+      if (response.status === 401) {
+        throw new Error('Invalid API Key. Please check your FMCSA WebKey and try again.');
+      }
+      if (response.status === 404) {
+        throw new Error('Carrier not found. Please verify the DOT/MC number or name and try again.');
+      }
+      if (response.status === 403) {
+        throw new Error('Access forbidden. Your API key may not have proper permissions.');
+      }
+      throw new Error(`API Error ${response.status}: ${response.statusText}`);
     }
 
     const data = await response.json();
-    const carrier = data.content?.[0] || data.content || data;
+    console.log('Response data:', data);
     
-    if (!carrier) throw new Error('No carrier data returned');
+    // Handle response format variations
+    let carrier;
+    if (data.content) {
+      carrier = Array.isArray(data.content) ? data.content[0] : data.content;
+    } else if (Array.isArray(data)) {
+      carrier = data[0];
+    } else {
+      carrier = data;
+    }
+    
+    if (!carrier || !carrier.legalName) {
+      throw new Error('No carrier data found in API response. The carrier may not exist in FMCSA database.');
+    }
 
     displayResults(carrier);
 
   } catch (error) {
-    showError('Lookup Failed', error.message);
+    console.error('Search error:', error);
+    
+    // Provide helpful error messages
+    let errorTitle = 'Lookup Failed';
+    let errorMsg = error.message;
+    
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      errorTitle = 'Connection Error';
+      errorMsg = 'Unable to reach FMCSA API. This could be due to: (1) CORS restrictions, (2) Network issues, or (3) API service temporarily down. Try again in a few moments.';
+    }
+    
+    showError(errorTitle, errorMsg);
   } finally {
     document.getElementById('loadingIndicator').classList.add('hidden');
+    document.getElementById('searchBtn').disabled = false;
   }
 }
 
-// ── DISPLAY RESULTS ────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// DISPLAY RESULTS
+// ══════════════════════════════════════════════════════════════════════════════
+
 function displayResults(c) {
   const riskAssessment = assessRisk(c);
   
   const resultsDiv = document.getElementById('results');
   resultsDiv.innerHTML = `
     <div class="result-card ${riskAssessment.class}">
-      <h2>${riskAssessment.icon} ${riskAssessment.verdict}</h2>
-      <h3>${c.legalName || 'Unknown Carrier'}</h3>
-      <p>DOT ${c.dotNumber || '—'} • MC ${c.docketNumber || '—'} • ${c.phyState || ''}</p>
+      <div style="font-size: 32px; margin-bottom: 10px;">${riskAssessment.icon}</div>
+      <h2 style="margin: 0 0 5px 0;">${riskAssessment.verdict}</h2>
+      <h3 style="margin: 0 0 10px 0; font-size: 20px;">${c.legalName || 'Unknown Carrier'}</h3>
+      <p style="margin: 0; color: #666;">DOT ${c.dotNumber || c.usDotNumber || '—'} • MC ${c.docketNumber || '—'} • ${c.phyState || c.state || ''}</p>
     </div>
 
     <div class="result-card">
-      <h3>📋 Carrier Information</h3>
+      <h3 style="margin-bottom: 15px;">📋 Carrier Information</h3>
       <div class="data-grid">
         <div class="data-item">
           <div class="data-label">Legal Name</div>
@@ -251,11 +396,11 @@ function displayResults(c) {
         </div>
         <div class="data-item">
           <div class="data-label">DOT Number</div>
-          <div class="data-value">${c.dotNumber || c.usDotNumber || '—'}</div>
+          <div class="data-value"><strong>${c.dotNumber || c.usDotNumber || '—'}</strong></div>
         </div>
         <div class="data-item">
           <div class="data-label">MC Number</div>
-          <div class="data-value">${c.docketNumber || '—'}</div>
+          <div class="data-value"><strong>${c.docketNumber || '—'}</strong></div>
         </div>
         <div class="data-item">
           <div class="data-label">Common Authority</div>
@@ -273,20 +418,31 @@ function displayResults(c) {
           <div class="data-label">Driver OOS %</div>
           <div class="data-value">${c.driverOosPercent || c.driverOosRate || '0'}%</div>
         </div>
+        <div class="data-item">
+          <div class="data-label">Total Crashes (24mo)</div>
+          <div class="data-value">${c.totalCrashes || c.crashTotal || '0'}</div>
+        </div>
+        <div class="data-item">
+          <div class="data-label">Phone</div>
+          <div class="data-value">${c.telephone || '—'}</div>
+        </div>
       </div>
     </div>
 
     <div class="result-card">
-      <h3>⚠️ Risk Flags</h3>
-      ${riskAssessment.flags.map(f => `<div style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 4px;">
-        ${f.icon} <strong>${f.title}</strong><br>
-        <small style="color: #666;">${f.detail}</small>
-      </div>`).join('')}
+      <h3 style="margin-bottom: 15px;">⚠️ Risk Assessment</h3>
+      ${riskAssessment.flags.map(f => `
+        <div style="margin: 12px 0; padding: 12px; background: #f8f9fa; border-radius: 4px; border-left: 3px solid ${f.icon === '🚫' ? '#C0392B' : f.icon === '⚠️' ? '#D4860B' : '#1A7A40'};">
+          <div style="font-size: 18px; margin-bottom: 5px;">${f.icon} <strong>${f.title}</strong></div>
+          <div style="font-size: 13px; color: #666;">${f.detail}</div>
+        </div>
+      `).join('')}
     </div>
 
-    <div style="margin-top: 20px; text-align: center;">
-      <button onclick="exportToTMS()">📋 Export to 3G TMS</button>
-      <button onclick="window.open('https://safer.fmcsa.dot.gov/query.asp?searchtype=ANY&query_type=queryCarrierSnapshot&query_param=USDOT&query_string=${c.dotNumber || c.usDotNumber}', '_blank')">🔗 View in SAFER</button>
+    <div style="margin-top: 20px; text-align: center; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
+      <button onclick="exportToTMS()" style="padding: 12px 24px;">📋 Export to 3G TMS</button>
+      <button onclick="window.open('https://safer.fmcsa.dot.gov/query.asp?searchtype=ANY&query_type=queryCarrierSnapshot&query_param=USDOT&query_string=${c.dotNumber || c.usDotNumber}', '_blank')" style="padding: 12px 24px;">🔗 View in SAFER</button>
+      <button onclick="clearSearch()" style="padding: 12px 24px; background: #6c757d;">🔄 New Search</button>
     </div>
   `;
   
@@ -297,7 +453,10 @@ function displayResults(c) {
   window.currentVerdict = riskAssessment.verdict;
 }
 
-// ── RISK ASSESSMENT ────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// RISK ASSESSMENT
+// ══════════════════════════════════════════════════════════════════════════════
+
 function assessRisk(c) {
   let verdict = 'APPROVED';
   let flags = [];
@@ -306,46 +465,58 @@ function assessRisk(c) {
   const auth = (c.commonAuthority || '').toLowerCase();
   if (auth === 'revoked' || auth === 'not authorized') {
     verdict = 'BLOCKED';
-    flags.push({ icon: '🚫', title: 'Authority Revoked', detail: 'Common authority is not active.' });
+    flags.push({ icon: '🚫', title: 'Authority Revoked / Not Authorized', detail: 'Common operating authority is not active. Do NOT use this carrier.' });
+  }
+  
+  if ((c.pendingRevocation || '').toLowerCase() === 'yes') {
+    verdict = 'BLOCKED';
+    flags.push({ icon: '🚫', title: 'Pending Authority Revocation', detail: 'FMCSA has initiated revocation proceedings against this carrier.' });
   }
   
   // Safety rating
   const rating = (c.safetyRating || '').toLowerCase();
   if (rating === 'unsatisfactory') {
     verdict = 'BLOCKED';
-    flags.push({ icon: '🚫', title: 'Unsatisfactory Safety Rating', detail: 'FMCSA Unsatisfactory rating.' });
+    flags.push({ icon: '🚫', title: 'Unsatisfactory Safety Rating', detail: 'FMCSA has assigned an Unsatisfactory safety rating. This carrier must not be used.' });
   } else if (rating === 'conditional') {
     if (verdict === 'APPROVED') verdict = 'CONDITIONAL';
-    flags.push({ icon: '⚠️', title: 'Conditional Safety Rating', detail: 'Requires review.' });
+    flags.push({ icon: '⚠️', title: 'Conditional Safety Rating', detail: 'Carrier has a Conditional safety rating. Requires additional review before use.' });
   }
   
   // OOS rates
   const vehOOS = parseFloat(c.vehicleOosPercent || c.vehicleOosRate || 0);
   const drvOOS = parseFloat(c.driverOosPercent || c.driverOosRate || 0);
+  const vehNatAvg = 20.87;
+  const drvNatAvg = 5.51;
   
-  if (vehOOS > 31) {
+  if (vehOOS > vehNatAvg * 1.5) {
     if (verdict === 'APPROVED') verdict = 'CONDITIONAL';
-    flags.push({ icon: '⚠️', title: `Vehicle OOS: ${vehOOS}%`, detail: 'Exceeds national average by >50%' });
+    flags.push({ icon: '⚠️', title: `Vehicle OOS Rate: ${vehOOS.toFixed(1)}%`, detail: `Exceeds national average (${vehNatAvg}%) by more than 50%. Severe maintenance deficiencies.` });
+  } else if (vehOOS > vehNatAvg) {
+    if (verdict === 'APPROVED') verdict = 'CONDITIONAL';
+    flags.push({ icon: '⚠️', title: `Vehicle OOS Rate: ${vehOOS.toFixed(1)}%`, detail: `Above national average of ${vehNatAvg}%.` });
   }
   
-  if (drvOOS > 8) {
+  if (drvOOS > drvNatAvg * 1.5) {
     if (verdict === 'APPROVED') verdict = 'CONDITIONAL';
-    flags.push({ icon: '⚠️', title: `Driver OOS: ${drvOOS}%`, detail: 'Above acceptable threshold' });
+    flags.push({ icon: '⚠️', title: `Driver OOS Rate: ${drvOOS.toFixed(1)}%`, detail: `Exceeds national average (${drvNatAvg}%) by more than 50%.` });
+  } else if (drvOOS > drvNatAvg) {
+    flags.push({ icon: '⚠️', title: `Driver OOS Rate: ${drvOOS.toFixed(1)}%`, detail: `Above national average of ${drvNatAvg}%.` });
   }
   
   // Insurance
   if (c.insuranceCancellation === 'Yes' || c.insuranceCancellationPending === 'Yes') {
     verdict = 'BLOCKED';
-    flags.push({ icon: '🚫', title: 'Insurance Cancellation Pending', detail: 'Active insurance issue.' });
+    flags.push({ icon: '🚫', title: 'Insurance Cancellation Pending', detail: 'Active insurance cancellation found. Carrier will be uninsured. Do NOT use.' });
   }
   
   // Clean bill
   if (flags.length === 0) {
-    flags.push({ icon: '✅', title: 'No Major Risk Flags', detail: 'Authority active, metrics acceptable.' });
+    flags.push({ icon: '✅', title: 'No Major Risk Flags Detected', detail: 'Authority is active, OOS rates acceptable, no insurance issues found.' });
   }
   
   const verdictConfig = {
-    'APPROVED': { class: 'approved', icon: '✅', verdict: 'DLX VETTING — CLEARED' },
+    'APPROVED': { class: 'approved', icon: '✅', verdict: 'DLX VETTING — CLEARED FOR USE' },
     'CONDITIONAL': { class: 'warning', icon: '⚠️', verdict: 'DLX VETTING — REVIEW REQUIRED' },
     'BLOCKED': { class: 'blocked', icon: '⛔', verdict: 'DLX VETTING — DO NOT USE' }
   };
@@ -353,7 +524,10 @@ function assessRisk(c) {
   return { ...verdictConfig[verdict], flags };
 }
 
-// ── EXPORT FUNCTION ────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// UTILITY FUNCTIONS
+// ══════════════════════════════════════════════════════════════════════════════
+
 function exportToTMS() {
   if (!window.currentCarrier) return;
   
@@ -366,21 +540,58 @@ DOT Number:       ${c.dotNumber || c.usDotNumber || ''}
 MC Number:        MC${c.docketNumber || ''}
 DLX Verdict:      ${window.currentVerdict || ''}
 Common Authority: ${c.commonAuthority || ''}
-Safety Rating:    ${c.safetyRating || ''}
+Safety Rating:    ${c.safetyRating || 'Not Rated'}
+Vehicle OOS:      ${c.vehicleOosPercent || c.vehicleOosRate || '0'}%
+Driver OOS:       ${c.driverOosPercent || c.driverOosRate || '0'}%
+Phone:            ${c.telephone || ''}
 Queried:          ${new Date().toISOString()}
 Source:           FMCSA SAFER / DLX Tool
   `.trim();
   
   navigator.clipboard.writeText(tmsData).then(() => {
-    alert('✅ 3G TMS data copied to clipboard!');
+    alert('✅ 3G TMS carrier data copied to clipboard!');
+  }).catch(() => {
+    // Fallback for older browsers
+    const textarea = document.createElement('textarea');
+    textarea.value = tmsData;
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+    alert('✅ 3G TMS carrier data copied to clipboard!');
   });
 }
 
-// ── ERROR DISPLAY ──────────────────────────────────────────────
 function showError(title, message) {
-  document.getElementById('errorMessage').innerHTML = `<strong>${title}:</strong> ${message}`;
-  document.getElementById('errorBox').classList.remove('hidden');
+  const errorBox = document.getElementById('errorBox');
+  errorBox.innerHTML = `
+    <div class="result-card blocked">
+      <h3 style="margin-bottom: 10px;">❌ ${title}</h3>
+      <p style="margin: 0;">${message}</p>
+    </div>
+  `;
+  errorBox.classList.remove('hidden');
+  document.getElementById('instructions').classList.remove('hidden');
 }
+
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  document.getElementById('results').classList.add('hidden');
+  document.getElementById('errorBox').classList.add('hidden');
+  document.getElementById('instructions').classList.remove('hidden');
+  window.currentCarrier = null;
+  window.currentVerdict = null;
+}
+
+// Enter key support
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('searchInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') searchCarrier();
+  });
+  document.getElementById('apiKeyInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') saveApiKey();
+  });
+});
 </script>
 
 </body>
